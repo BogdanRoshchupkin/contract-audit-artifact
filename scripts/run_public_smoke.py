@@ -45,7 +45,7 @@ def main() -> int:
                 examples,
                 graph,
                 root / f"run-{index}",
-                max_tokens=32,
+                max_tokens=36,
                 validation_fraction=0.1,
                 seed=228,
             )
@@ -62,8 +62,10 @@ def main() -> int:
         raise RuntimeError("deterministic rerun mismatch")
     if reports[0]["exposure"]["retained"] != len(examples):
         raise RuntimeError("fixture loader did not retain every repaired example")
-    if reports[0]["budget"]["edited_rows"] != len(examples):
-        raise RuntimeError("fixture did not exercise distractor-only budget repair")
+    if reports[0]["budget"]["edited_rows"] != 1:
+        raise RuntimeError("fixture did not exercise selective budget repair")
+    if reports[0]["examples"]["graph_origin_distractor_rows"] != 1:
+        raise RuntimeError("fixture did not retain a graph-origin distractor")
     if reports[0]["exposure"]["train_assigned"] != 1:
         raise RuntimeError("fixture did not produce the expected train assignment")
     if reports[0]["exposure"]["validation_assigned"] != 1:
@@ -77,6 +79,7 @@ def main() -> int:
         "all_examples_retained": True,
         "edited_examples": reports[0]["budget"]["edited_rows"],
         "removed_distractor_chunks": reports[0]["budget"]["removed_distractor_chunks"],
+        "retained_graph_origin_rows": reports[0]["examples"]["graph_origin_distractor_rows"],
         "train_assigned": reports[0]["exposure"]["train_assigned"],
         "validation_assigned": reports[0]["exposure"]["validation_assigned"],
         "protected_invariants_preserved": reports[0]["examples"]["invariants_preserved"],

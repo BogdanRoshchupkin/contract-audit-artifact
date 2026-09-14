@@ -50,13 +50,14 @@ class ContractTests(unittest.TestCase):
                 examples,
                 graph,
                 directory,
-                max_tokens=32,
+                max_tokens=36,
                 validation_fraction=0.1,
             )
             self.assertTrue(report["examples"]["invariants_preserved"])
             self.assertEqual(report["examples"]["input"], 2)
-            self.assertEqual(report["budget"]["edited_rows"], 2)
-            self.assertEqual(report["budget"]["removed_distractor_chunks"], 2)
+            self.assertEqual(report["budget"]["edited_rows"], 1)
+            self.assertEqual(report["budget"]["removed_distractor_chunks"], 1)
+            self.assertEqual(report["examples"]["graph_origin_distractor_rows"], 1)
             self.assertEqual(report["exposure"]["retained"], 2)
             self.assertEqual(report["exposure"]["train_assigned"], 1)
             self.assertEqual(report["exposure"]["validation_assigned"], 1)
