@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/kgsft/example.schema.json",
+  "title": "KG-SFT Contract Example",
+  "type": "object",
+  "required": ["example_id", "question", "target", "task_type", "support", "distractors", "source_refs"],
+  "properties": {
+    "example_id": {"type": "string", "minLength": 1},
+    "question": {"type": "string", "minLength": 1},
+    "target": {"type": "string", "minLength": 1},
+    "task_type": {"enum": ["answer", "refusal"]},
+    "support": {"type": "array", "items": {"$ref": "#/$defs/chunk"}},
+    "distractors": {"type": "array", "items": {"$ref": "#/$defs/chunk"}},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "metadata": {"type": "object"}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["source_id"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "uri": {"type": "string"},
+        "revision": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^$|^[0-9a-f]{64}$"},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "chunk": {
+      "type": "object",
+      "required": ["chunk_id", "text", "role", "source_refs"],
+      "properties": {
+        "chunk_id": {"type": "string", "minLength": 1},
+        "text": {"type": "string", "minLength": 1},
+        "role": {"enum": ["support", "distractor"]},
+        "origin": {"enum": ["document", "graph", "retrieval", "synthetic"]},
+        "graph_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"task_type": {"const": "answer"}}},
+      "then": {"properties": {"support": {"minItems": 1}}}
+    }
+  ],
+  "additionalProperties": false
+}

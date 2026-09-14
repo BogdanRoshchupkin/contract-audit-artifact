@@ -1,0 +1,28 @@
+{
+  "all_selected_objects_have_provenance": true,
+  "all_selected_paragraph_ids_resolved": true,
+  "artifact_type": "rubq_import_preflight",
+  "eligible_answer_bearing_rows": 1694,
+  "input_rows": 2330,
+  "limit": 100,
+  "paragraphs_basename": "RuBQ_2.0_paragraphs.json",
+  "paragraphs_indexed": 56952,
+  "paragraphs_sha256": "f91c2fd1d688b1d9f0f89f33c61d678c834e4e52ed9e1324bb76477374c5a6ab",
+  "questions_basename": "RuBQ_2.0_test.json",
+  "questions_sha256": "63d9e32a1bdefb2de713a9ccf3a0f9f0a4a48f2fdddd35b3908d6846b63dc85b",
+  "schema_version": 1,
+  "seed": 228,
+  "selected_distractor_chunks": 2108,
+  "selected_example_ids_sha256": "e4267cc2e6d3138330aaa250d5a70ae6bf928565c9946a2d3894c299f38b8ed0",
+  "selected_examples_sha256": "068a10b4d685c756f2650a232317c6150d2d03910abbcf911a1184c8b09e2bfb",
+  "selected_graph_origin_rows": 0,
+  "selected_multi_support_rows": 45,
+  "selected_rows": 100,
+  "selected_support_chunks": 160,
+  "skipped": {
+    "missing_core": 0,
+    "missing_paragraph_text": 0,
+    "no_answer_paragraph": 636,
+    "not_object": 0
+  }
+}

@@ -1,0 +1,13 @@
+include LICENSE
+include README.md
+include pyproject.toml
+include uv.lock
+recursive-include kgsft *.py *.json
+recursive-include examples *.json *.jsonl
+recursive-include public_validation *.json *.md
+include scripts/run_public_smoke.py
+prune tests
+include tests/test_kgsft_contracts.py
+global-exclude .DS_Store
+global-exclude __pycache__
+global-exclude *.py[cod]

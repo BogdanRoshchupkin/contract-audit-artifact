@@ -1,0 +1,59 @@
+{
+  "graph_id": "atlas-authentication-v1",
+  "metadata": {"description": "Synthetic directed service-version graph"},
+  "nodes": [
+    {
+      "node_id": "atlas-v2",
+      "node_type": "service_version",
+      "label": "Service Atlas version 2",
+      "source_refs": [{"source_id": "atlas-runbook-v2", "revision": "2"}]
+    },
+    {
+      "node_id": "oauth2",
+      "node_type": "authentication_method",
+      "label": "OAuth2",
+      "source_refs": [{"source_id": "atlas-runbook-v2", "revision": "2"}]
+    },
+    {
+      "node_id": "atlas-v1",
+      "node_type": "service_version",
+      "label": "Service Atlas version 1",
+      "source_refs": [{"source_id": "atlas-runbook-v1", "revision": "1"}]
+    },
+    {
+      "node_id": "api-key",
+      "node_type": "authentication_method",
+      "label": "API key",
+      "source_refs": [{"source_id": "atlas-runbook-v1", "revision": "1"}]
+    }
+  ],
+  "relations": [
+    {
+      "relation_id": "rel-v2-requires-oauth2",
+      "source_node_id": "atlas-v2",
+      "target_node_id": "oauth2",
+      "relation_type": "REQUIRES",
+      "directed": true,
+      "source_refs": [{"source_id": "atlas-runbook-v2", "revision": "2"}]
+    },
+    {
+      "relation_id": "rel-v2-supersedes-v1",
+      "source_node_id": "atlas-v2",
+      "target_node_id": "atlas-v1",
+      "relation_type": "SUPERSEDES",
+      "directed": true,
+      "source_refs": [
+        {"source_id": "atlas-runbook-v2", "revision": "2"},
+        {"source_id": "atlas-runbook-v1", "revision": "1"}
+      ]
+    },
+    {
+      "relation_id": "rel-v1-requires-api-key",
+      "source_node_id": "atlas-v1",
+      "target_node_id": "api-key",
+      "relation_type": "REQUIRES",
+      "directed": true,
+      "source_refs": [{"source_id": "atlas-runbook-v1", "revision": "1"}]
+    }
+  ]
+}
