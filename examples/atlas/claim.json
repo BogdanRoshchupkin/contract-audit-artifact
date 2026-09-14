@@ -1,0 +1,38 @@
+{
+  "claim_id": "atlas-loader-comparison-v1",
+  "interpretation": "The synthetic comparison is protocol-compatible and bounded to the declared retention endpoint.",
+  "analysis_design": "synthetic_smoke_test",
+  "run_a": {
+    "label": "fixture_before",
+    "model_artifact_id": "atlas-fixture-before",
+    "model_artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "score_origin": "atlas-exposure-ledger-v1",
+    "roster_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "prompt_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "decoding_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "endpoint": "retention_rate",
+    "denominator": 2,
+    "missing_row_policy": "fail_on_missing",
+    "evidence_unit": "example"
+  },
+  "run_b": {
+    "label": "fixture_after",
+    "model_artifact_id": "atlas-fixture-after",
+    "model_artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "score_origin": "atlas-exposure-ledger-v1",
+    "roster_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "prompt_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "decoding_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "endpoint": "retention_rate",
+    "denominator": 2,
+    "missing_row_policy": "fail_on_missing",
+    "evidence_unit": "example"
+  },
+  "estimate": 0.0,
+  "uncertainty_method": "deterministic_fixture_check",
+  "confidence_interval": [0.0, 0.0],
+  "p_value": null,
+  "metadata": {
+    "scope": "synthetic software validation only"
+  }
+}

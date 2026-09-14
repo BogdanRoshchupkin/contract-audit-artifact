@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 from kgsft.compiler import compile_dataset, sha256_file
+from kgsft.evaluation import ClaimRecord, export_claim_validation
 from kgsft.graph import build_multidigraph
 from kgsft.schema import ContractExample, GraphBundle
 
@@ -18,6 +19,7 @@ OUTPUT_FILES = (
     "validation.jsonl",
     "compile_audit.json",
     "exposure_ledger.json",
+    "claim_validation.json",
 )
 
 
@@ -37,20 +39,27 @@ def _load_inputs() -> tuple[GraphBundle, list[ContractExample]]:
 
 def main() -> int:
     graph, examples = _load_inputs()
+    claim = ClaimRecord.from_dict(
+        json.loads((ROOT / "examples/atlas/claim.json").read_text(encoding="utf-8"))
+    )
     directed = build_multidigraph(graph)
     with tempfile.TemporaryDirectory(prefix="kgsft-smoke-") as directory:
         root = Path(directory)
-        reports = [
-            compile_dataset(
+        reports = []
+        claim_reports = []
+        for index in (1, 2):
+            run_dir = root / f"run-{index}"
+            reports.append(compile_dataset(
                 examples,
                 graph,
-                root / f"run-{index}",
+                run_dir,
                 max_tokens=36,
                 validation_fraction=0.1,
                 seed=228,
+            ))
+            claim_reports.append(
+                export_claim_validation(claim, run_dir / "claim_validation.json")
             )
-            for index in (1, 2)
-        ]
         hashes = [
             {
                 name: sha256_file(root / f"run-{index}" / name)
@@ -58,7 +67,11 @@ def main() -> int:
             }
             for index in (1, 2)
         ]
-    if reports[0] != reports[1] or hashes[0] != hashes[1]:
+    if (
+        reports[0] != reports[1]
+        or claim_reports[0] != claim_reports[1]
+        or hashes[0] != hashes[1]
+    ):
         raise RuntimeError("deterministic rerun mismatch")
     if reports[0]["exposure"]["retained"] != len(examples):
         raise RuntimeError("fixture loader did not retain every repaired example")
@@ -83,6 +96,7 @@ def main() -> int:
         "train_assigned": reports[0]["exposure"]["train_assigned"],
         "validation_assigned": reports[0]["exposure"]["validation_assigned"],
         "protected_invariants_preserved": reports[0]["examples"]["invariants_preserved"],
+        "claim_contract_validated": claim_reports[0]["status"] == "pass",
         "deterministic_rerun": True,
         "output_sha256": hashes[0],
     }

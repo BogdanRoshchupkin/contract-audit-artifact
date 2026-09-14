@@ -22,6 +22,8 @@ retriever, train a language model, or calculate model-quality scores.
   example-level provenance.
 - Replayable loader adapters with per-example retention and split records.
 - Evaluation grouping for questions that share support documents.
+- Fail-closed comparison claim records binding artifacts, score origin, roster,
+  inference fingerprints, denominator, missingness, and evidence unit.
 - A RuBQ 2.0 adapter for converting a public QA format into the canonical
   example schema.
 
@@ -48,6 +50,7 @@ outputs are deterministic. A successful run includes:
   "retained_graph_origin_rows": 1,
   "all_examples_retained": true,
   "protected_invariants_preserved": true,
+  "claim_contract_validated": true,
   "deterministic_rerun": true
 }
 ```
@@ -67,6 +70,7 @@ flowchart LR
     L --> W["validation.jsonl"]
     B --> A["compile_audit.json"]
     L --> E["exposure_ledger.json"]
+    E --> C["Bounded comparison<br/>claim contract"]
 ```
 
 ### Inputs
@@ -76,10 +80,12 @@ flowchart LR
 | Graph | One JSON object | Graph ID, provenance-carrying nodes, and directed typed relations |
 | Examples | JSONL | Stable example ID, question, target, support chunks, optional distractors, and source references |
 | Loader adapter | Python implementation | Exact serialization, token IDs, and deterministic split assignment |
+| Claim record | One JSON object | Compared artifacts, score origin, fixed roster, inference fingerprints, endpoint, denominator, missingness, uncertainty, and evidence unit |
 
 The authoritative JSON Schemas are
-[`graph.schema.json`](kgsft/schemas/graph.schema.json) and
-[`example.schema.json`](kgsft/schemas/example.schema.json).
+[`graph.schema.json`](kgsft/schemas/graph.schema.json),
+[`example.schema.json`](kgsft/schemas/example.schema.json), and
+[`claim.schema.json`](kgsft/schemas/claim.schema.json).
 
 ## Build the graph input
 
@@ -98,8 +104,9 @@ and any extraction process you trust, then normalize its output into one
    source reference.
 
 The validator rejects unknown graph-record IDs, dangling relation endpoints,
-duplicate IDs, non-directed relations, and graph/chunk lineage with no shared
-`source_id`:
+duplicate IDs, omitted or non-directed relations, and graph/chunk lineage with
+no compatible source identity. When either side supplies a revision or digest,
+both sides must supply the same value:
 
 ```bash
 uv run --frozen kgsft validate \
@@ -208,24 +215,34 @@ class ProductionLoaderAdapter:
         ...
 ```
 
-Use the same adapter for budget repair and loader replay:
+Pass the adapter through the main compiler entry point so repair and replay use
+the same serialization and tokenization:
 
 ```python
-from kgsft import repair_to_budget, replay_loader
+from pathlib import Path
+
+from kgsft import compile_dataset
 
 adapter = ProductionLoaderAdapter()
-result = repair_to_budget(
-    example,
-    serialize=adapter.serialize,
-    count_tokens=lambda value: len(adapter.token_ids(value)),
+report = compile_dataset(
+    examples,
+    graph,
+    Path("/tmp/my-sft-bundle"),
     max_tokens=1024,
+    adapter=adapter,
 )
-ledger = replay_loader([result.example], adapter, max_tokens=1024)
 ```
 
 Distractors must be supplied in retention-priority order, with the least
 important chunk last. Repair removes chunks from the tail and fails explicitly
 if protected content still exceeds the budget.
+
+The public adapter boundary replays serialization, exact token IDs, the budget
+decision, and split assignment. It does not invoke an arbitrary trainer
+collator, packing stage, or optimizer. If those stages can filter or transform
+rows, audit them separately or encode their pre-split retention rule in a
+project-specific integration. The enterprise case study used a separate replay
+of its recovered closed loader; the Atlas CLI remains a public fixture.
 
 ## Import RuBQ 2.0
 
@@ -275,6 +292,24 @@ print(diagnostics["component_sizes"])
 This helper reports dependence components. Metric values and statistical tests
 remain the caller's responsibility.
 
+## Validate a bounded comparison claim
+
+After external metric and statistical code has produced an estimate, represent
+its admissible interpretation as a claim record. The validator checks that both
+runs use the same roster, score origin, prompt and decoding fingerprints,
+endpoint, denominator, missing-row policy, and evidence unit:
+
+```bash
+uv run --frozen kgsft validate-claim \
+  --claim examples/atlas/claim.json \
+  --output /tmp/atlas-claim-validation.json
+```
+
+The command fails on a mismatched roster or decoding fingerprint and on omitted
+fields such as score origin or denominator. A passing report certifies protocol
+compatibility and completeness, not the semantic truth or statistical
+significance of the interpretation. Metric computation stays external.
+
 ## Public API
 
 | API | Purpose |
@@ -282,11 +317,13 @@ remain the caller's responsibility.
 | `ContractExample`, `EvidenceChunk`, `SourceRef` | Build and validate canonical QA examples |
 | `GraphBundle`, `GraphNode`, `GraphRelation` | Build provenance-carrying directed graph records |
 | `build_multidigraph` | Materialize a NetworkX `MultiDiGraph` |
-| `validate_graph_lineage` | Resolve graph-origin chunks to graph records and shared sources |
+| `validate_graph_lineage` | Resolve graph-origin chunks to graph records and compatible source versions |
 | `repair_to_budget` | Fit examples by removing distractors only |
 | `replay_loader` | Produce per-example loader exposure records |
-| `compile_dataset` | Compile a complete bundle with the public fixture adapter |
+| `compile_dataset` | Compile a complete bundle with a fixture or caller-supplied loader adapter |
 | `support_document_components` | Group evaluation rows sharing support documents |
+| `ClaimRecord`, `ComparisonRun` | Represent a bounded, fully identified comparison |
+| `validate_claim_record`, `export_claim_validation` | Reject incompatible claims and emit an audit report |
 
 ## Repository layout
 
@@ -297,6 +334,7 @@ remain the caller's responsibility.
 |   |-- schemas/               # canonical JSON Schemas
 |   |-- compiler.py            # deterministic compilation
 |   |-- exposure.py            # loader adapters and exposure ledger
+|   |-- evaluation.py          # dependence grouping and claim contracts
 |   |-- graph.py               # directed graph construction
 |   |-- schema.py              # evidence objects and invariants
 |   `-- transforms.py          # distractor-only budget repair

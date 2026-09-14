@@ -1,8 +1,14 @@
 """Public contracts for auditable KG-to-SFT compilation."""
 
 from .compiler import compile_dataset
-from .evaluation import support_document_components
-from .exposure import FixtureLoaderAdapter, replay_loader
+from .evaluation import (
+    ClaimRecord,
+    ComparisonRun,
+    export_claim_validation,
+    support_document_components,
+    validate_claim_record,
+)
+from .exposure import FixtureLoaderAdapter, LoaderAdapter, replay_loader
 from .graph import build_multidigraph, validate_graph_lineage
 from .schema import (
     ContractExample,
@@ -18,19 +24,24 @@ from .transforms import BudgetRepairError, repair_to_budget, replace_distractors
 __all__ = [
     "BudgetRepairError",
     "ContractExample",
+    "ClaimRecord",
+    "ComparisonRun",
     "EvidenceChunk",
     "FixtureLoaderAdapter",
     "GraphBundle",
     "GraphNode",
     "GraphRelation",
+    "LoaderAdapter",
     "SourceRef",
     "ValidationError",
     "build_multidigraph",
     "compile_dataset",
+    "export_claim_validation",
     "repair_to_budget",
     "replace_distractors",
     "replay_loader",
     "support_document_components",
+    "validate_claim_record",
     "validate_graph_lineage",
 ]
 

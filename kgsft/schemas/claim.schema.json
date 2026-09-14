@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/kgsft/claim.schema.json",
+  "title": "KG-SFT Bounded Comparison Claim",
+  "type": "object",
+  "required": [
+    "claim_id",
+    "interpretation",
+    "analysis_design",
+    "run_a",
+    "run_b",
+    "estimate",
+    "uncertainty_method",
+    "confidence_interval"
+  ],
+  "properties": {
+    "claim_id": {"type": "string", "minLength": 1},
+    "interpretation": {"type": "string", "minLength": 1},
+    "analysis_design": {"type": "string", "minLength": 1},
+    "run_a": {"$ref": "#/$defs/run"},
+    "run_b": {"$ref": "#/$defs/run"},
+    "estimate": {"type": "number"},
+    "uncertainty_method": {"type": "string", "minLength": 1},
+    "confidence_interval": {
+      "type": "array",
+      "prefixItems": [{"type": "number"}, {"type": "number"}],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "p_value": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "metadata": {"type": "object"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run": {
+      "type": "object",
+      "required": [
+        "label",
+        "model_artifact_id",
+        "model_artifact_sha256",
+        "score_origin",
+        "roster_sha256",
+        "prompt_fingerprint",
+        "decoding_fingerprint",
+        "endpoint",
+        "denominator",
+        "missing_row_policy",
+        "evidence_unit"
+      ],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "model_artifact_id": {"type": "string", "minLength": 1},
+        "model_artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "score_origin": {"type": "string", "minLength": 1},
+        "roster_sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_fingerprint": {"$ref": "#/$defs/sha256"},
+        "decoding_fingerprint": {"$ref": "#/$defs/sha256"},
+        "endpoint": {"type": "string", "minLength": 1},
+        "denominator": {"type": "integer", "minimum": 1},
+        "missing_row_policy": {"type": "string", "minLength": 1},
+        "evidence_unit": {"type": "string", "minLength": 1},
+        "dependence_assignment_sha256": {
+          "type": "string",
+          "pattern": "^$|^[0-9a-f]{64}$"
+        },
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

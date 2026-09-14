@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-from .exposure import FixtureLoaderAdapter, replay_loader
+from .exposure import FixtureLoaderAdapter, LoaderAdapter, replay_loader
 from .graph import build_multidigraph, validate_graph_lineage
 from .schema import ContractExample, GraphBundle, canonical_sha256
 from .transforms import repair_to_budget
@@ -40,13 +40,20 @@ def compile_dataset(
     max_tokens: int = 256,
     validation_fraction: float = 0.1,
     seed: int = 228,
+    adapter: LoaderAdapter | None = None,
 ) -> dict[str, Any]:
-    """Validate, repair, replay and write a self-auditing public bundle."""
+    """Validate, repair, replay and write a self-auditing SFT bundle.
+
+    When ``adapter`` is omitted, the deterministic public fixture adapter is
+    used. Production callers should pass an adapter that reproduces their real
+    serializer, tokenizer and split assignment.
+    """
 
     output = Path(output_dir).expanduser().resolve()
     directed_graph = build_multidigraph(graph)
     lineage = validate_graph_lineage(graph, examples)
-    adapter = FixtureLoaderAdapter(
+    caller_supplied_adapter = adapter is not None
+    loader_adapter = adapter or FixtureLoaderAdapter(
         max_tokens=max_tokens,
         validation_fraction=validation_fraction,
         seed=seed,
@@ -56,8 +63,8 @@ def compile_dataset(
     for example in examples:
         result = repair_to_budget(
             example,
-            serialize=adapter.serialize,
-            count_tokens=lambda value: len(adapter.token_ids(value)),
+            serialize=loader_adapter.serialize,
+            count_tokens=lambda value: len(loader_adapter.token_ids(value)),
             max_tokens=max_tokens,
         )
         repaired.append(result.example)
@@ -70,7 +77,7 @@ def compile_dataset(
                 "invariant_sha256": result.invariant_sha256,
             }
         )
-    ledger = replay_loader(repaired, adapter, max_tokens=max_tokens)
+    ledger = replay_loader(repaired, loader_adapter, max_tokens=max_tokens)
     split_by_id = {
         record.example_id: record.assigned_split
         for record in ledger.records
@@ -115,7 +122,15 @@ def compile_dataset(
             "records": repair_records,
         },
         "exposure": ledger.summary,
-        "config": {"validation_fraction": validation_fraction, "seed": seed},
+        "config": {
+            "loader_adapter": loader_adapter.name,
+            "caller_supplied_adapter": caller_supplied_adapter,
+            "max_tokens": max_tokens,
+            "fixture_validation_fraction": (
+                None if caller_supplied_adapter else validation_fraction
+            ),
+            "fixture_seed": None if caller_supplied_adapter else seed,
+        },
     }
     audit["content_sha256"] = canonical_sha256(audit)
     _write_json(output / "compile_audit.json", audit)

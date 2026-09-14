@@ -66,7 +66,8 @@ The complete bundle is [`graph.json`](graph.json).
 ## 4. Link graph-derived QA chunks
 
 A graph-origin support or distractor records which graph facts produced it.
-Its `source_refs` must overlap the provenance of every referenced graph record:
+Its `source_refs` must match the identity and any declared revision/hash of
+every referenced graph record:
 
 ```json
 {
@@ -110,3 +111,20 @@ uv run --frozen kgsft compile \
 For a new corpus, keep these two files as templates, replace the synthetic
 records, and implement the production loader adapter described in the root
 [`README.md`](../../README.md).
+
+## 6. Validate the comparison boundary
+
+The synthetic [`claim.json`](claim.json) shows the third contract without
+requiring model inference. It binds two artifact identities to the same score
+origin, roster, prompt/decoding fingerprints, endpoint, denominator, missing-row
+policy, and evidence unit:
+
+```bash
+uv run --frozen kgsft validate-claim \
+  --claim examples/atlas/claim.json \
+  --output /tmp/atlas-claim-validation.json
+```
+
+Change either run's roster or decoding fingerprint and the command fails rather
+than exporting a comparison. The validator checks comparability; it does not
+compute metrics or certify that the interpretation is substantively true.

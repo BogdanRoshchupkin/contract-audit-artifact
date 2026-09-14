@@ -1,1 +1,1 @@
-"""Packaged JSON contracts for examples and directed graphs."""
+"""Packaged JSON contracts for examples, graphs, and bounded claims."""

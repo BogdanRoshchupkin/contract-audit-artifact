@@ -9,6 +9,7 @@ from typing import Any
 
 from .adapters.rubq import import_rubq
 from .compiler import compile_dataset
+from .evaluation import ClaimRecord, export_claim_validation
 from .graph import build_multidigraph, validate_graph_lineage
 from .schema import ContractExample, GraphBundle
 
@@ -74,12 +75,27 @@ def build_parser() -> argparse.ArgumentParser:
     rubq.add_argument("--report", type=Path, required=True)
     rubq.add_argument("--limit", type=int, default=100)
     rubq.add_argument("--seed", type=int, default=228)
+
+    claim = subparsers.add_parser(
+        "validate-claim",
+        help="Validate and export a comparison claim contract",
+    )
+    claim.add_argument("--claim", type=Path, required=True)
+    claim.add_argument("--output", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command in {"validate", "compile"}:
+    if args.command == "validate-claim":
+        claim = ClaimRecord.from_dict(_load_json(args.claim))
+        if args.output:
+            report = export_claim_validation(claim, args.output)
+        else:
+            from .evaluation import validate_claim_record
+
+            report = validate_claim_record(claim)
+    elif args.command in {"validate", "compile"}:
         graph = GraphBundle.from_dict(_load_json(args.graph))
         examples = _load_examples(args.examples)
         directed = build_multidigraph(graph)
@@ -101,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
                 validation_fraction=args.validation_fraction,
                 seed=args.seed,
             )
-    else:
+    elif args.command == "import-rubq":
         examples, report = import_rubq(
             args.questions,
             args.paragraphs,
@@ -110,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         _write_jsonl(args.output, [example.to_dict() for example in examples])
         _write_json(args.report, report)
+    else:  # pragma: no cover - argparse enforces the command set
+        raise ValueError(f"unsupported command: {args.command}")
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

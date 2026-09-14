@@ -230,7 +230,7 @@ class GraphRelation:
     target_node_id: str
     relation_type: str
     source_refs: Sequence[SourceRef]
-    directed: bool = True
+    directed: bool
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -245,13 +245,15 @@ class GraphRelation:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "GraphRelation":
+        if "directed" not in value:
+            raise ValidationError("graph relations must explicitly declare directed=true")
         return cls(
             relation_id=value.get("relation_id", ""),
             source_node_id=value.get("source_node_id", ""),
             target_node_id=value.get("target_node_id", ""),
             relation_type=value.get("relation_type", ""),
             source_refs=value.get("source_refs", ()),
-            directed=value.get("directed", True),
+            directed=value["directed"],
             metadata=value.get("metadata", {}),
         )
 

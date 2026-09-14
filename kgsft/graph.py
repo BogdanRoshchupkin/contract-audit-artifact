@@ -6,7 +6,20 @@ from typing import Any, Sequence
 
 import networkx as nx
 
-from .schema import ContractExample, GraphBundle, ValidationError
+from .schema import ContractExample, GraphBundle, SourceRef, ValidationError
+
+
+def _source_refs_compatible(left: SourceRef, right: SourceRef) -> bool:
+    """Match source identity and every version identifier supplied by either side."""
+
+    if left.source_id != right.source_id:
+        return False
+    for field_name in ("revision", "sha256"):
+        left_value = getattr(left, field_name)
+        right_value = getattr(right, field_name)
+        if (left_value or right_value) and left_value != right_value:
+            return False
+    return True
 
 
 def validate_graph_lineage(
@@ -16,13 +29,10 @@ def validate_graph_lineage(
     """Validate graph-record references used by graph-origin evidence chunks."""
 
     checked = bundle if isinstance(bundle, GraphBundle) else GraphBundle.from_dict(bundle)
-    records = {
-        node.node_id: {ref.source_id for ref in node.source_refs}
-        for node in checked.nodes
-    }
+    records = {node.node_id: tuple(node.source_refs) for node in checked.nodes}
     records.update(
         {
-            relation.relation_id: {ref.source_id for ref in relation.source_refs}
+            relation.relation_id: tuple(relation.source_refs)
             for relation in checked.relations
         }
     )
@@ -33,18 +43,21 @@ def validate_graph_lineage(
             if chunk.origin != "graph":
                 continue
             graph_origin_chunks += 1
-            chunk_source_ids = {ref.source_id for ref in chunk.source_refs}
             for record_id in chunk.graph_record_ids:
-                record_source_ids = records.get(record_id)
-                if record_source_ids is None:
+                record_sources = records.get(record_id)
+                if record_sources is None:
                     raise ValidationError(
                         f"graph-origin chunk {chunk.chunk_id!r} references unknown "
                         f"graph record {record_id!r}"
                     )
-                if not chunk_source_ids.intersection(record_source_ids):
+                if not any(
+                    _source_refs_compatible(chunk_source, record_source)
+                    for chunk_source in chunk.source_refs
+                    for record_source in record_sources
+                ):
                     raise ValidationError(
                         f"graph-origin chunk {chunk.chunk_id!r} and graph record "
-                        f"{record_id!r} have no shared source_id"
+                        f"{record_id!r} have no compatible source identity/version"
                     )
                 referenced_record_ids.add(record_id)
     return {
