@@ -34,7 +34,7 @@ The project requires Python 3.10 or newer. With
 
 ```bash
 uv run --frozen python scripts/run_public_smoke.py
-uv run --frozen python -m unittest tests.test_kgsft_contracts
+uv run --frozen python -m unittest discover -s tests -p 'test_kgsft*.py' -v
 ```
 
 The smoke test compiles the synthetic Atlas fixture twice and verifies that the
@@ -106,7 +106,8 @@ and any extraction process you trust, then normalize its output into one
 The validator rejects unknown graph-record IDs, dangling relation endpoints,
 duplicate IDs, omitted or non-directed relations, and graph/chunk lineage with
 no compatible source identity. When either side supplies a revision or digest,
-both sides must supply the same value:
+both sides must supply the same value; one matching source cannot hide a
+conflicting revision or digest on another shared source:
 
 ```bash
 uv run --frozen kgsft validate \
@@ -215,6 +216,10 @@ class ProductionLoaderAdapter:
         ...
 ```
 
+`partition()` must return exactly `"train"` or `"validation"`. Any other value
+fails before exports are written. The compiler also verifies that retained IDs
+are conserved across the two disjoint output files.
+
 Pass the adapter through the main compiler entry point so repair and replay use
 the same serialization and tokenization:
 
@@ -243,6 +248,8 @@ collator, packing stage, or optimizer. If those stages can filter or transform
 rows, audit them separately or encode their pre-split retention rule in a
 project-specific integration. The enterprise case study used a separate replay
 of its recovered closed loader; the Atlas CLI remains a public fixture.
+The ledger reports optimizer exposure as `not_applicable`, `unknown`, or
+`known`; retention alone is never promoted to proof of optimizer exposure.
 
 ## Import RuBQ 2.0
 
@@ -290,7 +297,8 @@ print(diagnostics["component_sizes"])
 ```
 
 This helper reports dependence components. Metric values and statistical tests
-remain the caller's responsibility.
+remain the caller's responsibility. Document IDs must be non-empty strings;
+`null` is rejected rather than coerced into a shared source identity.
 
 ## Validate a bounded comparison claim
 
@@ -341,7 +349,7 @@ significance of the interpretation. Metric computation stays external.
 |-- examples/atlas/            # graph-building guide and end-to-end fixture
 |-- public_validation/         # text-free public-format preflight
 |-- scripts/run_public_smoke.py
-|-- tests/test_kgsft_contracts.py
+|-- tests/                    # core and reviewer-regression tests
 |-- pyproject.toml
 `-- uv.lock
 ```

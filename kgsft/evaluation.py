@@ -293,7 +293,14 @@ def support_document_components(
         raw_documents = row.get(documents_field)
         if not isinstance(raw_documents, (list, tuple, set)):
             raise ValueError(f"row {row_id!r} has no document ID sequence")
-        documents = {str(value).strip() for value in raw_documents if str(value).strip()}
+        documents: set[str] = set()
+        for value in raw_documents:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"row {row_id!r} contains a non-string or empty support "
+                    "document ID"
+                )
+            documents.add(value.strip())
         if not documents:
             raise ValueError(f"row {row_id!r} has no support document IDs")
         for document in documents:

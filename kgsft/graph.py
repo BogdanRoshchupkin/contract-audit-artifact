@@ -22,6 +22,37 @@ def _source_refs_compatible(left: SourceRef, right: SourceRef) -> bool:
     return True
 
 
+def _validate_record_source_compatibility(
+    *,
+    chunk_id: str,
+    record_id: str,
+    chunk_sources: Sequence[SourceRef],
+    record_sources: Sequence[SourceRef],
+) -> None:
+    """Require a shared source and reject every explicit shared-ID conflict."""
+
+    chunk_by_id: dict[str, list[SourceRef]] = {}
+    record_by_id: dict[str, list[SourceRef]] = {}
+    for source in chunk_sources:
+        chunk_by_id.setdefault(source.source_id, []).append(source)
+    for source in record_sources:
+        record_by_id.setdefault(source.source_id, []).append(source)
+    common_ids = set(chunk_by_id) & set(record_by_id)
+    if not common_ids:
+        raise ValidationError(
+            f"graph-origin chunk {chunk_id!r} and graph record {record_id!r} "
+            "have no common source identity"
+        )
+    for source_id in sorted(common_ids):
+        for chunk_source in chunk_by_id[source_id]:
+            for record_source in record_by_id[source_id]:
+                if not _source_refs_compatible(chunk_source, record_source):
+                    raise ValidationError(
+                        f"graph-origin chunk {chunk_id!r} conflicts with graph "
+                        f"record {record_id!r} for shared source {source_id!r}"
+                    )
+
+
 def validate_graph_lineage(
     bundle: GraphBundle | dict[str, Any],
     examples: Sequence[ContractExample],
@@ -50,15 +81,12 @@ def validate_graph_lineage(
                         f"graph-origin chunk {chunk.chunk_id!r} references unknown "
                         f"graph record {record_id!r}"
                     )
-                if not any(
-                    _source_refs_compatible(chunk_source, record_source)
-                    for chunk_source in chunk.source_refs
-                    for record_source in record_sources
-                ):
-                    raise ValidationError(
-                        f"graph-origin chunk {chunk.chunk_id!r} and graph record "
-                        f"{record_id!r} have no compatible source identity/version"
-                    )
+                _validate_record_source_compatibility(
+                    chunk_id=chunk.chunk_id,
+                    record_id=record_id,
+                    chunk_sources=chunk.source_refs,
+                    record_sources=record_sources,
+                )
                 referenced_record_ids.add(record_id)
     return {
         "graph_origin_chunks": graph_origin_chunks,

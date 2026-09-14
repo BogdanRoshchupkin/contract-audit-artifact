@@ -83,12 +83,39 @@ def compile_dataset(
         for record in ledger.records
         if record.retained
     }
-    train = [example.to_dict() for example in repaired if split_by_id.get(example.example_id) == "train"]
-    validation = [
-        example.to_dict()
+    train_examples = [
+        example
+        for example in repaired
+        if split_by_id.get(example.example_id) == "train"
+    ]
+    validation_examples = [
+        example
         for example in repaired
         if split_by_id.get(example.example_id) == "validation"
     ]
+    retained_ids = {
+        record.example_id for record in ledger.records if record.retained
+    }
+    train_ids = {example.example_id for example in train_examples}
+    validation_ids = {example.example_id for example in validation_examples}
+    if train_ids & validation_ids:
+        raise RuntimeError("train and validation exports contain overlapping IDs")
+    if train_ids | validation_ids != retained_ids:
+        missing = sorted(retained_ids - train_ids - validation_ids)
+        unexpected = sorted((train_ids | validation_ids) - retained_ids)
+        raise RuntimeError(
+            "retained/exported example-ID conservation failed: "
+            f"missing={missing!r}, unexpected={unexpected!r}"
+        )
+    if (
+        len(train_examples) != ledger.summary["train_assigned"]
+        or len(validation_examples) != ledger.summary["validation_assigned"]
+        or len(train_examples) + len(validation_examples)
+        != ledger.summary["retained"]
+    ):
+        raise RuntimeError("retained/exported row-count conservation failed")
+    train = [example.to_dict() for example in train_examples]
+    validation = [example.to_dict() for example in validation_examples]
     _write_jsonl(output / "train.jsonl", train)
     _write_jsonl(output / "validation.jsonl", validation)
     _write_json(output / "exposure_ledger.json", ledger.to_dict())
@@ -122,6 +149,12 @@ def compile_dataset(
             "records": repair_records,
         },
         "exposure": ledger.summary,
+        "exports": {
+            "retained_ids_conserved": True,
+            "splits_disjoint": True,
+            "train_rows": len(train),
+            "validation_rows": len(validation),
+        },
         "config": {
             "loader_adapter": loader_adapter.name,
             "caller_supplied_adapter": caller_supplied_adapter,

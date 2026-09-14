@@ -9,6 +9,9 @@ from typing import Any, Protocol, Sequence
 from .schema import ContractExample
 
 
+VALID_ASSIGNED_SPLITS = frozenset({"train", "validation"})
+
+
 class LoaderAdapter(Protocol):
     name: str
 
@@ -37,6 +40,15 @@ class ExposureLedger:
 
     @property
     def summary(self) -> dict[str, Any]:
+        train_records = [
+            record for record in self.records if record.assigned_split == "train"
+        ]
+        if not train_records:
+            optimizer_exposure_status = "not_applicable"
+        elif all(record.optimizer_exposed is not None for record in train_records):
+            optimizer_exposure_status = "known"
+        else:
+            optimizer_exposure_status = "unknown"
         return {
             "adapter": self.adapter,
             "intended": len(self.records),
@@ -44,11 +56,9 @@ class ExposureLedger:
             "dropped": sum(not record.retained for record in self.records),
             "train_assigned": sum(record.assigned_split == "train" for record in self.records),
             "validation_assigned": sum(record.assigned_split == "validation" for record in self.records),
-            "optimizer_exposure_known": all(
-                record.optimizer_exposed is not None
-                for record in self.records
-                if record.assigned_split == "train"
-            ),
+            "optimizer_exposure_applicable": bool(train_records),
+            "optimizer_exposure_known": optimizer_exposure_status == "known",
+            "optimizer_exposure_status": optimizer_exposure_status,
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -102,7 +112,19 @@ def replay_loader(
         serialized = adapter.serialize(example)
         token_count = len(tuple(adapter.token_ids(serialized)))
         retained = 0 < token_count <= max_tokens
-        split = adapter.partition(example.example_id) if retained else None
+        split = None
+        if retained:
+            raw_split = adapter.partition(example.example_id)
+            if (
+                not isinstance(raw_split, str)
+                or raw_split not in VALID_ASSIGNED_SPLITS
+            ):
+                raise ValueError(
+                    f"loader adapter {adapter.name!r} returned invalid split "
+                    f"{raw_split!r} for {example.example_id!r}; expected "
+                    "'train' or 'validation'"
+                )
+            split = raw_split
         records.append(
             ExposureRecord(
                 example_id=example.example_id,
@@ -115,4 +137,3 @@ def replay_loader(
             )
         )
     return ExposureLedger(adapter=adapter.name, records=tuple(records))
-
