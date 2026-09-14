@@ -9,7 +9,7 @@ from typing import Any
 
 from .adapters.rubq import import_rubq
 from .compiler import compile_dataset
-from .graph import build_multidigraph
+from .graph import build_multidigraph, validate_graph_lineage
 from .schema import ContractExample, GraphBundle
 
 
@@ -83,12 +83,14 @@ def main(argv: list[str] | None = None) -> int:
         graph = GraphBundle.from_dict(_load_json(args.graph))
         examples = _load_examples(args.examples)
         directed = build_multidigraph(graph)
+        lineage = validate_graph_lineage(graph, examples)
         if args.command == "validate":
             report = {
                 "status": "pass",
                 "examples": len(examples),
                 "nodes": directed.number_of_nodes(),
                 "directed_relations": directed.number_of_edges(),
+                **lineage,
             }
         else:
             report = compile_dataset(

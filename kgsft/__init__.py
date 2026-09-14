@@ -3,7 +3,7 @@
 from .compiler import compile_dataset
 from .evaluation import support_document_components
 from .exposure import FixtureLoaderAdapter, replay_loader
-from .graph import build_multidigraph
+from .graph import build_multidigraph, validate_graph_lineage
 from .schema import (
     ContractExample,
     EvidenceChunk,
@@ -31,7 +31,7 @@ __all__ = [
     "replace_distractors",
     "replay_loader",
     "support_document_components",
+    "validate_graph_lineage",
 ]
 
 __version__ = "0.1.0"
-

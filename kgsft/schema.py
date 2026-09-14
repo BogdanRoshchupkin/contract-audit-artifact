@@ -279,6 +279,12 @@ class GraphBundle:
             raise ValidationError("graph contains duplicate node_id values")
         if len(relation_ids) != len(set(relation_ids)):
             raise ValidationError("graph contains duplicate relation_id values")
+        overlapping_ids = set(node_ids).intersection(relation_ids)
+        if overlapping_ids:
+            raise ValidationError(
+                "node_id and relation_id values must be globally unique: "
+                + ", ".join(sorted(overlapping_ids))
+            )
         known_nodes = set(node_ids)
         for relation in relations:
             if relation.source_node_id not in known_nodes or relation.target_node_id not in known_nodes:
@@ -298,4 +304,3 @@ class GraphBundle:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
-

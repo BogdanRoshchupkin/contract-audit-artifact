@@ -8,7 +8,7 @@ from pathlib import Path
 from kgsft.compiler import compile_dataset
 from kgsft.adapters.rubq import import_rubq
 from kgsft.evaluation import support_document_components
-from kgsft.graph import build_multidigraph
+from kgsft.graph import build_multidigraph, validate_graph_lineage
 from kgsft.schema import ContractExample, GraphBundle, GraphNode, GraphRelation, SourceRef, ValidationError
 
 
@@ -42,6 +42,17 @@ class ContractTests(unittest.TestCase):
                 nodes=(GraphNode("a", "type", "A", (source,)), GraphNode("b", "type", "B", (source,))),
                 relations=(GraphRelation("r", "a", "b", "LINK", ()),),
             )
+
+    def test_graph_origin_chunk_must_resolve_to_graph_record(self):
+        graph, examples = self.load_fixture()
+        broken = examples[0].to_dict()
+        broken["distractors"][0]["graph_record_ids"] = ["missing-relation"]
+        with self.assertRaises(ValidationError):
+            validate_graph_lineage(graph, [ContractExample.from_dict(broken)])
+        broken = examples[0].to_dict()
+        broken["distractors"][0]["source_refs"] = [{"source_id": "unrelated-source"}]
+        with self.assertRaises(ValidationError):
+            validate_graph_lineage(graph, [ContractExample.from_dict(broken)])
 
     def test_compile_preserves_invariants_and_writes_ledger(self):
         graph, examples = self.load_fixture()

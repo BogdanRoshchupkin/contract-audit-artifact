@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from .exposure import FixtureLoaderAdapter, replay_loader
-from .graph import build_multidigraph
+from .graph import build_multidigraph, validate_graph_lineage
 from .schema import ContractExample, GraphBundle, canonical_sha256
 from .transforms import repair_to_budget
 
@@ -45,6 +45,7 @@ def compile_dataset(
 
     output = Path(output_dir).expanduser().resolve()
     directed_graph = build_multidigraph(graph)
+    lineage = validate_graph_lineage(graph, examples)
     adapter = FixtureLoaderAdapter(
         max_tokens=max_tokens,
         validation_fraction=validation_fraction,
@@ -93,6 +94,7 @@ def compile_dataset(
             "directed_relations": directed_graph.number_of_edges(),
             "is_directed": directed_graph.is_directed(),
             "all_objects_have_provenance": True,
+            **lineage,
         },
         "examples": {
             "input": len(examples),
@@ -126,4 +128,3 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
-

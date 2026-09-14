@@ -3,7 +3,7 @@ include README.md
 include pyproject.toml
 include uv.lock
 recursive-include kgsft *.py *.json
-recursive-include examples *.json *.jsonl
+recursive-include examples *.json *.jsonl *.md
 recursive-include public_validation *.json *.md
 include scripts/run_public_smoke.py
 prune tests

@@ -6,7 +6,9 @@ datasets. It keeps document and graph provenance attached to context chunks,
 preserves protected example fields during token-budget repair, and records what
 a loader retains or drops.
 
-The package covers dataset preparation and validation. It does not provide a
+The package covers dataset preparation and validation. It accepts a graph made
+by your existing extractor, rules, graph database, or manual curation; it does
+not extract a knowledge graph from raw text. It also does not provide a
 retriever, train a language model, or calculate model-quality scores.
 
 ## Features
@@ -54,9 +56,11 @@ outputs are deterministic. A successful run includes:
 
 ```mermaid
 flowchart LR
-    D["Documents<br/>source IDs and revisions"] --> V["Schema and<br/>provenance validation"]
-    G["Directed typed graph<br/>nodes and relations"] --> V
-    Q["QA examples<br/>support and distractors"] --> V
+    D["Documents<br/>source IDs and revisions"] --> X["Your graph builder<br/>rules, extractor, or existing KG"]
+    X --> G["Directed typed graph<br/>nodes and relations"]
+    D --> Q["QA examples<br/>support and distractors"]
+    G --> V["Schema and lineage validation"]
+    Q --> V
     V --> B["Exact serialization<br/>and budget repair"]
     B --> L["Loader replay"]
     L --> T["train.jsonl"]
@@ -76,6 +80,37 @@ flowchart LR
 The authoritative JSON Schemas are
 [`graph.schema.json`](kgsft/schemas/graph.schema.json) and
 [`example.schema.json`](kgsft/schemas/example.schema.json).
+
+## Build the graph input
+
+`kgsft-contracts` is deliberately graph-builder agnostic. Start with documents
+and any extraction process you trust, then normalize its output into one
+`GraphBundle`:
+
+1. Give every source document a stable `source_id`; add its `revision`, `uri`,
+   and SHA-256 digest when available.
+2. Create stable, globally unique IDs for entities or versions in `nodes`.
+3. Create a typed relation for each directed fact. For example,
+   `atlas-v2 --REQUIRES--> oauth2` is not interchangeable with the reverse edge.
+4. Attach one or more `source_refs` to every node and relation.
+5. When a QA chunk was produced from the graph, set `origin` to `graph`, list
+   the producing node or relation IDs in `graph_record_ids`, and retain a shared
+   source reference.
+
+The validator rejects unknown graph-record IDs, dangling relation endpoints,
+duplicate IDs, non-directed relations, and graph/chunk lineage with no shared
+`source_id`:
+
+```bash
+uv run --frozen kgsft validate \
+  --graph examples/atlas/graph.json \
+  --examples examples/atlas/examples.jsonl
+```
+
+The complete source-to-graph walkthrough is in
+[`examples/atlas/README.md`](examples/atlas/README.md). The graph schema stores
+provenance and direction; ontology design and entity/relation extraction remain
+the caller's responsibility.
 
 ### Outputs
 
@@ -102,7 +137,7 @@ checkout without manually activating an environment.
 
 ## Atlas tutorial
 
-[`examples/atlas`](examples/atlas) is a self-contained synthetic example.
+[`examples/atlas`](examples/atlas/README.md) is a self-contained synthetic example.
 It contains two versions of a fictional service runbook:
 
 - version 2 requires OAuth2 and supersedes version 1;
@@ -247,6 +282,7 @@ remain the caller's responsibility.
 | `ContractExample`, `EvidenceChunk`, `SourceRef` | Build and validate canonical QA examples |
 | `GraphBundle`, `GraphNode`, `GraphRelation` | Build provenance-carrying directed graph records |
 | `build_multidigraph` | Materialize a NetworkX `MultiDiGraph` |
+| `validate_graph_lineage` | Resolve graph-origin chunks to graph records and shared sources |
 | `repair_to_budget` | Fit examples by removing distractors only |
 | `replay_loader` | Produce per-example loader exposure records |
 | `compile_dataset` | Compile a complete bundle with the public fixture adapter |
@@ -264,7 +300,7 @@ remain the caller's responsibility.
 |   |-- graph.py               # directed graph construction
 |   |-- schema.py              # evidence objects and invariants
 |   `-- transforms.py          # distractor-only budget repair
-|-- examples/atlas/            # synthetic end-to-end fixture
+|-- examples/atlas/            # graph-building guide and end-to-end fixture
 |-- public_validation/         # text-free public-format preflight
 |-- scripts/run_public_smoke.py
 |-- tests/test_kgsft_contracts.py
